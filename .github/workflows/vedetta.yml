@@ -5,7 +5,9 @@ name: Vedetta
 
 on:
   schedule:
-    - cron: '3-59/10 * * * *'   # ogni 10 minuti, lontano dall'inizio dell'ora (quando GitHub è più carico e ritarda)
+    # ogni 10 minuti, lontano dall'inizio dell'ora (quando GitHub è più carico e ritarda). I minuti elencati: con
+    # «3-59/10» il 18/10/26 in un'ora e mezza non era partito nessun giro.
+    - cron: '3,13,23,33,43,53 * * * *'
     - cron: '17 5 1 * *'        # il primo del mese, un segno di vita: GitHub spegne gli orari dopo 60 giorni senza novità
   workflow_dispatch:
     inputs:
