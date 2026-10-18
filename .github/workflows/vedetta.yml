@@ -1,0 +1,48 @@
+# La vedetta dei siti di addiplatform (vedetta.py): ogni 10 minuti, da GitHub, fuori da Ergonet.
+# Gli avvisi sono issue di questo repository: GitHub manda l'email a Marco. Se la vedetta stessa non può lavorare, il giro
+# finisce in rosso e arriva l'email «Run failed» di GitHub.
+name: Vedetta
+
+on:
+  schedule:
+    - cron: '3-59/10 * * * *'   # ogni 10 minuti, lontano dall'inizio dell'ora (quando GitHub è più carico e ritarda)
+    - cron: '17 5 1 * *'        # il primo del mese, un segno di vita: GitHub spegne gli orari dopo 60 giorni senza novità
+  workflow_dispatch:
+    inputs:
+      prova:
+        description: 'Manda un avviso di prova (si apre e si chiude subito: arriva l''email?)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # solo per il segno di vita del mese
+  issues: write     # gli avvisi
+
+concurrency:
+  group: vedetta
+  cancel-in-progress: false
+
+jobs:
+  guarda:
+    name: Guarda i siti
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Guarda i siti
+        if: github.event.schedule != '17 5 1 * *'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROVA: ${{ inputs.prova && '--prova' || '' }}
+        run: python3 vedetta.py $PROVA
+
+      - name: Il segno di vita del mese
+        if: github.event.schedule == '17 5 1 * *'
+        run: |
+          date -u +%Y-%m-%d > vivo.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vivo.txt
+          git commit -m "La vedetta è viva: $(date -u +%Y-%m-%d)"
+          git push

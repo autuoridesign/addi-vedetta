@@ -1,0 +1,9 @@
+{
+  "LEGGIMI": "I siti che la vedetta guarda. «orologi»: quelli che il pannello di Ergonet deve chiamare su quel sito, coi minuti oltre i quali sono fermi (avvisi e posta ogni 5 minuti: 20; pulizia una volta al giorno: 1560, 26 ore). Un orologio che non è qui non si guarda. Al 18/10/26 sono quelli che il pannello chiama davvero (sonda-orologi-server.php di addiplatform): quando se ne aggiunge uno nel pannello, si aggiunge anche qui.",
+  "siti": [
+    {"nome": "Prova (addiplatform)", "chiave": "prova", "indirizzo": "https://addiplatform.autuoridesign.com", "orologi": {"posta": 20}},
+    {"nome": "Euromarmi Ferrara", "chiave": "euromarmi", "indirizzo": "https://euromarmiferrara.autuoridesign.com", "orologi": {}},
+    {"nome": "Cultura Digitale", "chiave": "cultura", "indirizzo": "https://culturadigitale.live", "orologi": {"avvisi": 20}},
+    {"nome": "Top Color", "chiave": "topcolor", "indirizzo": "https://colori.topcolorstore.com", "orologi": {"pulizia": 1560}}
+  ]
+}
