@@ -3,7 +3,7 @@ name: Prove
 
 on:
   push:
-    paths: ['vedetta.py', 'prova_vedetta.py', 'siti.json', '.github/workflows/prove.yml']
+    paths: ['vedetta.py', 'prova_vedetta.py', 'campanello.py', 'prova_campanello.py', 'siti.json', '.github/workflows/prove.yml']
   pull_request:
   workflow_dispatch:
 
@@ -21,3 +21,5 @@ jobs:
         run: python3 -c "import json; s = json.load(open('siti.json'))['siti']; assert s and all({'nome', 'chiave', 'indirizzo', 'orologi'} <= set(x) for x in s); print(len(s), 'siti')"
       - name: Le prove
         run: python3 prova_vedetta.py
+      - name: Le prove del campanello
+        run: python3 prova_campanello.py

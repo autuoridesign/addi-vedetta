@@ -2,6 +2,7 @@
 """La vedetta dei siti di addiplatform: guarda DA FUORI se un sito cade o un orologio si ferma, e lo dice a Marco.
 
 Gira su GitHub ogni 10 minuti (.github/workflows/vedetta.yml), fuori da Ergonet: se cade il server dei siti, la vedetta no.
+La sveglia la dà cron-job.org (campanello.py): l'orario di GitHub da solo partiva ogni 2,5-6,5 ore e resta di riserva.
 Per ogni sito di siti.json:
   1. la prima pagina: deve rispondere 200, oppure 403 con la pagina della password (il sito chiuso: risponde lo stesso);
   2. /api/stato.php: deve dire che il database risponde (il PHP e il database dietro la cache, che la prima pagina può

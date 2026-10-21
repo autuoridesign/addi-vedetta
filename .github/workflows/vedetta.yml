@@ -1,15 +1,16 @@
-# La vedetta dei siti di addiplatform (vedetta.py): ogni 10 minuti, da GitHub, fuori da Ergonet.
+# La vedetta dei siti di addiplatform (vedetta.py): ogni 10 minuti, da GitHub, fuori da Ergonet. La sveglia la dà
+# cron-job.org (campanello.py), che ogni 10 minuti preme «Run workflow» da fuori: l'orario qui sotto da solo non basta.
 # Gli avvisi sono issue di questo repository: GitHub manda l'email a Marco. Se la vedetta stessa non può lavorare, il giro
 # finisce in rosso e arriva l'email «Run failed» di GitHub.
 name: Vedetta
 
 on:
   schedule:
-    # ogni 10 minuti, lontano dall'inizio dell'ora (quando GitHub è più carico e ritarda). I minuti elencati: con
-    # «3-59/10» il 18/10/26 in un'ora e mezza non era partito nessun giro.
+    # l'orario di riserva, se il campanello tace: GitHub lo fa partire quando ha posto (dal 19/10/26 ogni 2,5-6,5 ore, non
+    # ogni 10 minuti). Lontano dall'inizio dell'ora, coi minuti elencati: con «3-59/10» il 18/10/26 non partiva niente.
     - cron: '3,13,23,33,43,53 * * * *'
     - cron: '17 5 1 * *'        # il primo del mese, un segno di vita: GitHub spegne gli orari dopo 60 giorni senza novità
-  workflow_dispatch:
+  workflow_dispatch:            # il campanello di cron-job.org, ogni 10 minuti; e il pulsante «Run workflow», con la prova
     inputs:
       prova:
         description: 'Manda un avviso di prova (si apre e si chiude subito: arriva l''email?)'

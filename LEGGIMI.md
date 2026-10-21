@@ -6,6 +6,21 @@ pannello di Ergonet fa partire a orario: gli avvisi, la lettura della posta, la 
 Gira su GitHub ogni 10 minuti, fuori da Ergonet: se cade il server dei siti, la vedetta no. Gratis (il repository è
 pubblico), nessun abbonamento.
 
+## Chi la sveglia
+
+L'orario di GitHub da solo non basta: GitHub lo fa partire quando ha posto, e dal 19/10/26 la vedetta partiva ogni 2,5-6,5
+ore. La sveglia vera la dà **cron-job.org** (gratis, nessun abbonamento): ai minuti 3, 13, 23, 33, 43 e 53 di ogni ora preme
+«Run workflow» da fuori, con una chiave di GitHub che può solo far partire la vedetta (le Actions di questo repository e
+basta; non scade). L'orario di GitHub resta di riserva.
+
+- **Se il campanello non riesce** (la chiave cancellata, GitHub che rifiuta 3 volte di fila): cron-job.org manda un'email a
+  Marco, un'altra quando torna a posto e una se spegne il campanello.
+- **Prepararlo, o cambiare una chiave**: `python3 campanello.py` sul Mac. Chiede la chiave di cron-job.org (Settings, API) e
+  quella di GitHub senza mostrarle, prova quella di GitHub facendo partire un giro, poi crea il campanello su cron-job.org o
+  lo aggiorna. La chiave di GitHub resta solo su cron-job.org.
+- **Spegnerlo**: su cron-job.org (Cronjobs), oppure cancellando la chiave «Campanello della vedetta» su GitHub (Settings,
+  Developer settings, Fine-grained tokens).
+
 ## Cosa guarda
 
 Per ogni sito di `siti.json`:
@@ -40,5 +55,7 @@ nell'elenco non si guarda. Il sito deve avere `/api/stato.php` (addiplatform dal
 
     python3 prova_vedetta.py            34 prove con siti e GitHub finti, nessuna rete vera (~8 secondi)
     python3 prova_vedetta.py --morsi    14 rotture di vedetta.py: ognuna deve far diventare rosso il suo caso
+    python3 prova_campanello.py         15 prove con GitHub e cron-job.org finti (~1 secondo)
+    python3 prova_campanello.py --morsi 9 rotture di campanello.py
 
 Girano anche su GitHub a ogni modifica (Actions → Prove).
