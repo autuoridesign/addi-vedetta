@@ -40,6 +40,9 @@ vedetta scrive «tornato a posto» e lo chiude da sola.
 
 - **Di notte** (dalle 22 alle 8) un sito giù avvisa subito; un orologio fermo aspetta le 8 (è un problema lento).
 - **Una cosa voluta?** Chiudi tu l'avviso: la vedetta non lo riapre per 7 giorni.
+- **L'elenco di GitHub incompleto**: il 22/10/26, in un guasto di GitHub, l'elenco degli avvisi arrivava senza quelli già
+  aperti e la vedetta ne ha aperti sei uguali in due ore. Ora, prima di aprirne uno nuovo, rilegge col numero quelli che
+  l'elenco non ha mostrato; se GitHub non risponde bene, l'avviso aspetta il giro dopo.
 - **La vedetta stessa non può lavorare** (la sua rete, GitHub): il giro finisce in rosso e GitHub manda la sua email
   «Run failed». Anche questo è un avviso.
 - **Provare che le email arrivano**: Actions → Vedetta → Run workflow → spunta «prova». Arriva un avviso di prova, già
@@ -53,8 +56,8 @@ nell'elenco non si guarda. Il sito deve avere `/api/stato.php` (addiplatform dal
 
 ## Le prove
 
-    python3 prova_vedetta.py            34 prove con siti e GitHub finti, nessuna rete vera (~8 secondi)
-    python3 prova_vedetta.py --morsi    14 rotture di vedetta.py: ognuna deve far diventare rosso il suo caso
+    python3 prova_vedetta.py            38 prove con siti e GitHub finti, nessuna rete vera (~8 secondi)
+    python3 prova_vedetta.py --morsi    18 rotture di vedetta.py: ognuna deve far diventare rosso il suo caso
     python3 prova_campanello.py         15 prove con GitHub e cron-job.org finti (~1 secondo)
     python3 prova_campanello.py --morsi 9 rotture di campanello.py
 

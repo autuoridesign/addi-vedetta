@@ -15,6 +15,8 @@ Gli avvisi sono «issue» di questo repository, una per problema: GitHub manda l
 Una volta sola: finché il problema c'è l'avviso resta aperto (un promemoria al giorno); quando passa, la vedetta scrive
 «tornato a posto» e lo chiude da sola. Se Marco ne chiude uno lui (una cosa voluta), la vedetta non lo riapre per 7 giorni.
 Quello che non si è potuto guardare (gli orologi di un sito che non risponde) non si apre e non si chiude.
+L'elenco degli avvisi che dà GitHub può arrivare incompleto senza un errore (il guasto del 22/10/26): prima di aprirne uno
+nuovo la vedetta rilegge col numero quelli che l'elenco non ha mostrato; se GitHub non risponde bene, aspetta il giro dopo.
 
 Se la vedetta stessa non può lavorare (la rete del giro, GitHub che rifiuta), il giro finisce in rosso e GitHub manda la sua
 email «Run failed»: anche questo è un avviso.
@@ -226,8 +228,41 @@ def promemoria(sito, chiave, avviso, titolo, dettaglio):
 
 
 def avvisi_di_prima():
+    """Gli avvisi di prima, aperti e chiusi: l'ultimo toccato per primo."""
+    return api('GET', f'/repos/{REPO}/issues?state=all&labels={ETICHETTA}&per_page=100&sort=updated&direction=desc') or []
+
+
+def numero(n):
+    """L'avviso n letto col suo numero: None se quel numero non c'è ancora, {} se è stato cancellato."""
+    try:
+        return api('GET', f'/repos/{REPO}/issues/{n}')
+    except urllib.error.HTTPError as e:
+        if e.code == 404: return None
+        if e.code == 410: return {}
+        raise
+
+
+# ⚠️ L'elenco di GitHub può arrivare incompleto senza un errore: il 22/10/26, nel guasto di GitHub sulle issue, la vedetta
+# non vedeva gli avvisi già aperti e ne ha aperti sei uguali in due ore (sei email a Marco). La lettura col numero non passa
+# dall'elenco: prima di un avviso nuovo si leggono così i numeri dopo l'ultimo mostrato, fino al primo che non c'è, e i buchi.
+def ricontrolla(elenco):
+    """L'elenco completato, o None se GitHub non risponde bene (l'avviso nuovo aspetta il giro dopo)."""
+    visti = {a.get('number') for a in elenco}
+    n, letti = max(visti, default=0), []
+    try:
+        while len(letti) < 100 and (a := numero(n + 1)) is not None:
+            n += 1
+            letti.append(a)
+        buchi = [m for m in range(max(visti, default=0), 0, -1) if m not in visti][:100]
+        letti += [numero(m) for m in buchi]
+    except Exception as e:
+        print(f'  GitHub non risponde bene alla lettura col numero ({e})')
+        return None
+    return elenco + [a for a in letti if a]
+
+
+def smista(elenco):
     """{segno: avviso aperto} e {segno: chiuso da Marco da meno di 7 giorni}."""
-    elenco = api('GET', f'/repos/{REPO}/issues?state=all&labels={ETICHETTA}&per_page=100&sort=updated&direction=desc') or []
     aperti, zitti = {}, {}
     for a in elenco:
         if a.get('pull_request'): continue
@@ -262,16 +297,23 @@ def principale(argv):
         return 2
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(siti)) as ex:
         visti = list(ex.map(guarda, siti))
-    aperti, zitti = avvisi_di_prima()
+    elenco = avvisi_di_prima()
+    aperti, zitti = smista(elenco)
+    riletto, sicuro = False, True        # prima di un avviso nuovo l'elenco si rilegge col numero, una volta per giro
     for sito, (problemi, noti) in zip(siti, visti):
         print(f'{sito["nome"]}: ' + ('a posto' if not problemi else '; '.join(t for t, _ in problemi.values())))
         for chiave in sorted(noti):
             s = segno(sito, chiave)
             if chiave in problemi:
                 titolo, dettaglio = problemi[chiave]
+                if s not in aperti and s not in zitti and not riletto:
+                    riletto, completo = True, ricontrolla(elenco)
+                    sicuro = completo is not None
+                    if sicuro: aperti, zitti = smista(completo)
                 if s in aperti: promemoria(sito, chiave, aperti[s], titolo, dettaglio)
                 elif s in zitti: print(f'  zitto: #{zitti[s]["number"]} chiuso da Marco da meno di 7 giorni')
                 elif chiave != 'sito' and notte(): print('  di notte: l\'avviso di un orologio aspetta le 8')
+                elif not sicuro: print('  l\'elenco degli avvisi non è sicuro: questo avviso aspetta il giro dopo')
                 else: apri(sito, chiave, titolo, dettaglio)
             elif s in aperti:
                 chiudi(sito, chiave, aperti[s])

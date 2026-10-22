@@ -24,6 +24,9 @@ vedetta.py VERO in un processo a parte, e guarda cosa ha chiesto al GitHub finto
  26 stato.php che risponde 500 anche con dentro «database: true»: giù
  27 stato.php che risponde 200 con «database: false»: giù (la regola del database da sola)
  28 di notte (dalle 22 alle 8) un sito giù avvisa subito, un orologio aspetta le 8
+ 29 l'elenco di GitHub arriva vuoto (il guasto del 22/10/26): gli avvisi si leggono col numero, nessun doppione
+ 30 l'elenco coi buchi e un numero cancellato: si trovano lo stesso
+ 31 l'elenco vuoto e la lettura col numero che non risponde: nessun avviso nuovo, il giro resta verde
 
   python3 prova_vedetta.py            le prove (~15 s)
   python3 prova_vedetta.py --morsi    ogni rottura di vedetta.py deve far diventare rosso il caso che la deve vedere
@@ -44,7 +47,7 @@ def prova(nome, ok, dettaglio=''):
 SITI = {}          # chiave → {'home': (codice, corpo), 'stato': (codice, corpo), 'ritardo': s, 'cade': n, 'visite': n}
 AVVISI = []        # le issue del GitHub finto
 CHIAMATE = []      # (metodo, percorso, dati)
-GUASTI = {'rete': None, 'api': False}
+GUASTI = {'rete': None, 'api': False, 'elenco': None, 'numero': False}   # elenco: quali avvisi l'elenco mostra ancora
 CHIUSA = '<!DOCTYPE html><html><body class="addi-privato"><form>password</form></body></html>'
 APERTA = '<!DOCTYPE html><html><body class="bt-theme">ciao</body></html>'
 
@@ -103,7 +106,8 @@ class Finto(http.server.BaseHTTPRequestHandler):
         if GUASTI['api'] and metodo != 'GET': return self.rispondi(500, {'message': 'rotto'}, 'application/json')
         if metodo == 'GET' and u.path == '/gh/repos/o/r/issues':
             q = urllib.parse.parse_qs(u.query)
-            el = [a for a in AVVISI if any(l['name'] == q.get('labels', [''])[0] for l in a['labels'])]
+            el = [a for a in AVVISI if not a.get('cancellato') and any(l['name'] == q.get('labels', [''])[0] for l in a['labels'])]
+            if GUASTI['elenco']: el = [a for a in el if GUASTI['elenco'](a)]   # il guasto del 22/10/26: 200, ma incompleto
             return self.rispondi(200, sorted(el, key=lambda a: a['updated_at'], reverse=True), 'application/json')
         if metodo == 'POST' and u.path == '/gh/repos/o/r/issues':
             a = {'number': len(AVVISI) + 1, 'title': dati['title'], 'body': dati['body'], 'state': 'open', 'commenti': [],
@@ -112,7 +116,13 @@ class Finto(http.server.BaseHTTPRequestHandler):
             return self.rispondi(201, a, 'application/json')
         m = re.match(r'^/gh/repos/o/r/issues/(\d+)(/comments)?$', u.path)
         if m:
-            a = AVVISI[int(m.group(1)) - 1]
+            n = int(m.group(1))
+            if metodo == 'GET' and not m.group(2):
+                if GUASTI['numero']: return self.rispondi(502, {'message': 'Bad Gateway'}, 'application/json')
+                if n > len(AVVISI): return self.rispondi(404, {'message': 'Not Found'}, 'application/json')
+                if AVVISI[n - 1].get('cancellato'): return self.rispondi(410, {'message': 'This issue was deleted'}, 'application/json')
+                return self.rispondi(200, AVVISI[n - 1], 'application/json')
+            a = AVVISI[n - 1]
             if metodo == 'POST' and m.group(2):
                 a['commenti'].append(dati['body']); a['updated_at'] = ora()
                 return self.rispondi(201, {'id': 1}, 'application/json')
@@ -164,7 +174,7 @@ def giro(elenco, *argomenti, controllo=None, ora_=None):
 
 
 def azzera():
-    SITI.clear(); AVVISI.clear(); CHIAMATE.clear(); GUASTI.update(rete=None, api=False)
+    SITI.clear(); AVVISI.clear(); CHIAMATE.clear(); GUASTI.update(rete=None, api=False, elenco=None, numero=False)
 
 
 def scritte(): return [c for c in CHIAMATE if c[0] != 'GET']
@@ -191,6 +201,8 @@ def casi():
     prova('2 il perché e i tentativi', 'rifiuta la connessione' in a.get('body', '') and '3 tentativi' in a.get('body', ''), a.get('body'))
     prova('2 chiama Marco (così l\'email arriva) e porta il segno', '@autuoridesign' in a.get('body', '') and '<!-- vedetta:a:sito -->' in a.get('body', ''), a.get('body'))
     prova('2 con l\'etichetta vedetta', [l['name'] for l in a.get('labels', [])] == ['vedetta'], a.get('labels'))
+    letture = [p for m, p, _ in CHIAMATE if m == 'GET' and re.match(r'^/gh/repos/o/r/issues/\d+$', p)]
+    prova('2 prima di aprirlo, una lettura sola col numero (il primo che non c\'è)', letture == ['/gh/repos/o/r/issues/1'], letture)
 
     # 3 di nuovo
     c, u = giro([('a', 'Alfa', {'avvisi': 20}, True), B])
@@ -338,6 +350,31 @@ def casi():
     c, u = giro([('a', 'Alfa', {}, True), B], ora_=oggi_alle(8))
     prova('28 alle 8: l\'avviso dell\'orologio parte', [a['title'] for a in AVVISI] == ['Alfa: il sito non risponde', 'Beta: la pulizia della notte è rifiutata'], (AVVISI, u))
 
+    # 29 l'elenco di GitHub vuoto (il guasto del 22/10/26: sei avvisi uguali in due ore)
+    azzera(); sito('b', home=(403, CHIUSA)); avviso('sito', 'a'); avviso('sito', 'd', stato_='closed', chiuso=2 * 86400)
+    GUASTI['elenco'] = lambda a: False
+    c, u = giro([('a', 'Alfa', {}, True), ('d', 'Delta', {}, True), B])
+    prova('29 l\'elenco di GitHub vuoto: l\'avviso aperto e quello chiuso da Marco si leggono col numero, nessun doppione',
+          c == 0 and len(AVVISI) == 2 and not scritte(), (c, AVVISI[2:], u))
+
+    # 30 l'elenco coi buchi, e un numero cancellato in mezzo
+    azzera(); sito('b', home=(403, CHIUSA))
+    avviso('sito', 'a')                                                                    # 1 aperto: l'elenco non lo mostra
+    avviso('sito', 'e', stato_='closed', labels=('vedetta', 'risolto'), chiuso=86400)       # 2 l'elenco mostra solo questo
+    avviso('sito', 'x', stato_='closed', labels=('vedetta', 'risolto'), chiuso=86400)       # 3 cancellato
+    AVVISI[-1]['cancellato'] = True
+    avviso('sito', 'd')                                                                    # 4 aperto: l'elenco non lo mostra
+    GUASTI['elenco'] = lambda a: a['number'] == 2
+    c, u = giro([('a', 'Alfa', {}, True), ('d', 'Delta', {}, True), B])
+    prova('30 l\'elenco coi buchi e un numero cancellato: gli avvisi aperti si trovano lo stesso, nessun doppione',
+          c == 0 and len(AVVISI) == 4 and not scritte(), (c, AVVISI[4:], u))
+
+    # 31 la lettura col numero che non risponde
+    azzera(); sito('b', home=(403, CHIUSA)); avviso('sito', 'a'); GUASTI['elenco'] = lambda a: False; GUASTI['numero'] = True
+    c, u = giro([('a', 'Alfa', {}, True), ('d', 'Delta', {}, True), B])
+    prova('31 l\'elenco vuoto e la lettura col numero che non risponde: nessun avviso nuovo, il giro resta verde, e lo dice',
+          c == 0 and len(AVVISI) == 1 and not scritte() and 'aspetta il giro dopo' in u, (c, AVVISI[1:], u))
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 # I morsi: ogni rottura si scrive in una copia di vedetta.py, le prove girano su quella e il caso indicato deve diventare
@@ -357,6 +394,10 @@ MORSI = [
     ('«in corso» da poco è un avviso', "esito == 'in corso' and chiamata < 900:", "esito == 'in corso' and chiamata < 0:", '24 '),
     ('di notte gli orologi avvisano lo stesso', "elif chiave != 'sito' and notte():", 'elif False:', '28 '),
     ('di notte tace anche il sito giù', "elif chiave != 'sito' and notte():", 'elif notte():', '28 '),
+    ('l\'elenco di GitHub si crede sempre', '                if s not in aperti and s not in zitti and not riletto:', '                if False:', '29 '),
+    ('i buchi dell\'elenco non si leggono', '        letti += [numero(m) for m in buchi]', '        pass', '30 '),
+    ('un numero cancellato ferma la ricerca', '        if e.code == 410: return {}', '        if e.code == 410: return None', '30 '),
+    ('GitHub che non risponde fa aprire lo stesso', '                elif not sicuro: print(', '                elif False: print(', '31 '),
 ]
 
 
